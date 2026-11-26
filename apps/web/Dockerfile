@@ -1,16 +1,17 @@
 # ── Stage 1: Node builder ────────────────────────────────────────────────────
+# Note: Build context must be repository root (.) so nginx.conf can be copied.
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 # Copy package files first (layer cache)
-COPY package.json package-lock.json ./
+COPY apps/web/package.json apps/web/package-lock.json ./
 
 # Install dependencies (ci = exact versions from lockfile)
 RUN npm ci
 
-# Copy source
-COPY . .
+# Copy web source
+COPY apps/web/ .
 
 # Production build
 RUN npm run build -- --configuration=production
@@ -25,7 +26,7 @@ RUN rm -rf /usr/share/nginx/html/*
 COPY --from=builder /app/dist/web/browser /usr/share/nginx/html
 
 # Copy custom nginx config (SPA routing support)
-COPY ../../infra/nginx/nginx.conf /etc/nginx/conf.d/default.conf
+COPY infra/nginx/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Non-root friendly: nginx listens on 8080 (see nginx.conf)
 EXPOSE 8080
