@@ -52,8 +52,8 @@ services:
   # ── Angular Frontend (optional, fullstack profile) ──────────────────────────
   web:
     build:
-      context: ./apps/web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/web/Dockerfile
     container_name: commerce_web
     restart: unless-stopped
     profiles: ["fullstack"]
