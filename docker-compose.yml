@@ -1,0 +1,66 @@
+version: '3.8'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Local Development Stack
+# Usage: docker compose up
+# Services: db only by default (api/web run via hot-reload on host)
+# To run full stack locally: docker compose --profile fullstack up
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: commerce_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: commerce_admin
+      POSTGRES_PASSWORD: commerce_admin_secret
+      POSTGRES_DB: commerce_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U commerce_admin -d commerce_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── FastAPI Backend (optional, fullstack profile) ───────────────────────────
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: commerce_api
+    restart: unless-stopped
+    profiles: ["fullstack"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://commerce_admin:commerce_admin_secret@db:5432/commerce_db
+      MIGRATION_DATABASE_URL: postgresql+asyncpg://commerce_admin:commerce_admin_secret@db:5432/commerce_db
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./apps/api/uploads:/app/uploads
+
+  # ── Angular Frontend (optional, fullstack profile) ──────────────────────────
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: commerce_web
+    restart: unless-stopped
+    profiles: ["fullstack"]
+    ports:
+      - "4200:8080"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

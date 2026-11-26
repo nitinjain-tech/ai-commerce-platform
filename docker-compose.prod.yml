@@ -1,0 +1,47 @@
+version: '3.8'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Production overrides
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# In production, DB is managed separately (Render/Supabase/Neon).
+# This file is used for self-hosted VPS deployments only.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  api:
+    profiles: []             # override: always run in prod (no profile needed)
+    image: ghcr.io/${GITHUB_REPOSITORY}/commerce-api:${IMAGE_TAG:-latest}
+    build: !reset null       # don't build locally, use pre-built image
+    restart: always
+    environment:
+      ENVIRONMENT: production
+      DEBUG: "false"
+      COOKIE_SECURE: "true"
+      COOKIE_SAMESITE: "strict"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    profiles: []             # override: always run in prod
+    image: ghcr.io/${GITHUB_REPOSITORY}/commerce-web:${IMAGE_TAG:-latest}
+    build: !reset null
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  db:
+    # In production, DB is external (Render/Supabase/Neon).
+    # Disable this service for cloud deployments.
+    profiles: ["self-hosted-db"]
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports: !reset []         # don't expose DB port in production
